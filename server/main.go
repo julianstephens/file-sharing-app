@@ -3,12 +3,13 @@ package main
 import (
 	"context"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/joho/godotenv"
-	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"net/http"
 	"os"
+	"path/filepath"
 )
 
 func main() {
@@ -23,26 +24,30 @@ func main() {
 		}
 	}()
 
-	coll := client.Database("sample_airbnb").Collection("listingsAndReviews")
-	name := "Ribeira Charming Duplex"
+	//fileDB := client.Database("file_sharing")
 
-	var result bson.M
-	err = coll.FindOne(context.TODO(), bson.D{{"name", name}}).Decode(&result)
-	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			return
-		}
-
-		panic(err)
-	}
-	//fileDB := client.Database("file-sharing")
-	//filesColl := fileDB.Collection("files")
+	//var result bson.M
+	//err = coll.FindOne(context.TODO(), bson.D{{"name", name}}).Decode(&result)
+	//if err != nil {
+	//	if err == mongo.ErrNoDocuments {
+	//		return
+	//	}
+	//
+	//	panic(err)
+	//}
 
 	r := gin.Default()
-
 	r.GET("/", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
-			"data": result,
+			"message": "fuck ya chickin strips",
+		})
+	})
+	r.POST("/upload", func(c *gin.Context) {
+		uploadFile(c)
+	})
+	r.POST("/save/:file", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{
+			"message": "you little turd",
 		})
 	})
 
@@ -57,6 +62,30 @@ func ConnectDB() (*mongo.Client, error) {
 	}
 
 	return client, nil
+}
+
+func uploadFile(c *gin.Context) {
+	//Retrieve file
+	file, err := c.FormFile("file")
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"message": "No file was recieved",
+		})
+		return
+	}
+	//Generate random name to avoid conflicts
+	ext := filepath.Ext(file.Filename)
+	randomName := uuid.New().String() + ext
+	if err := c.SaveUploadedFile(file, "/save/"+randomName); err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+			"message": "Something went wrong uploading the file",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "File uploaded successfully",
+	})
 }
 
 func getEnvVar(key string) string {
